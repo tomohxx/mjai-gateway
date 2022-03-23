@@ -1,0 +1,39 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Sample",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/sample.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "SSLKEYLOGFILE": "${workspaceFolder}/logs/pre-master-secret.log"
+      }
+    },
+    {
+      "name": "Main (Debug On)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "SSLKEYLOGFILE": "${workspaceFolder}/logs/pre-master-secret.log"
+      },
+      "args": ["-d"]
+    },
+    {
+      "name": "Main (Debug Off)",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/main.py",
+      "console": "integratedTerminal",
+      "justMyCode": true,
+      "env": {
+        "SSLKEYLOGFILE": "${workspaceFolder}/logs/pre-master-secret.log"
+      }
+    }
+  ]
+}
