@@ -416,8 +416,7 @@ class Naki(Base):
         }
 
         if actor == 0:
-            # TODO: cannot_dahaiに値をセットする
-            sent['cannot_dahai'] = []
+            sent['cannot_dahai'] = self.cannot_dahai(meld, state)
 
             for i in meld.exposed:
                 state.hand.remove(i)
@@ -431,6 +430,21 @@ class Naki(Base):
             p = mjai_to_tenhou_one(state, received['pai'], received['tsumogiri'])
             await utils.random_sleep(1, 2)
             await send_to_tenhou({'tag': 'D', 'p': p})
+
+    def cannot_dahai(self, meld: Meld, state: State) -> list[str]:
+        if meld.meld_type == Meld.PON and meld.unused in state.hand:
+            return tenhou_to_mjai([meld.unused])
+        elif meld.meld_type == Meld.CHI:
+            forbidden = [i for i in state.hand if i // 4 == meld.tiles[0] // 4]
+
+            if meld.r == 0 and meld.tiles[0] // 4 // 9 < 6:
+                forbidden.extend([i for i in state.hand if i // 4 == meld.tiles[0] // 4 + 3])
+            elif meld.r == 2 and meld.tiles[0] // 4 // 9 > 2:
+                forbidden.extend([i for i in state.hand if i // 4 == meld.tiles[0] // 4 - 3])
+
+            return list(set(tenhou_to_mjai(forbidden)))
+        else:
+            return []
 
 
 class ReachStep1(Base):
@@ -456,7 +470,7 @@ class ReachStep1(Base):
             await send_to_mjai(sent)
 
     def cannot_dahai(self, state: State) -> list[str]:
-        forbidden = set()
+        forbidden = []
         hand34 = to_34_array(state.hand)
 
         for index in state.hand:
@@ -466,11 +480,11 @@ class ReachStep1(Base):
                 hand34[index34] -= 1
 
                 if not isrh(hand34):
-                    forbidden.add(tenhou_to_mjai_one(index))
+                    forbidden.append(index)
 
                 hand34[index34] += 1
 
-        return list(forbidden)
+        return list(set(tenhou_to_mjai(forbidden)))
 
 
 class ReachStep2(Base):

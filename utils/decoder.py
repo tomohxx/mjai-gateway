@@ -10,10 +10,12 @@ class Meld:
     DAIMINKAN = 'daiminkan'
     ANKAN = 'ankan'
 
-    def __init__(self, target: int, meld_type: str, tiles: list[int]):
+    def __init__(self, target: int, meld_type: str, tiles: list[int], unused: int | None = None, r: int | None = None):
         self.target: int = target
         self.meld_type: str = meld_type
         self.tiles: list[int] = tiles
+        self.unused: int | None = unused
+        self.r: int | None = r
 
     @property
     def pai(self) -> str:
@@ -63,7 +65,7 @@ class Meld:
             t + 4 * 2 + ((m >> 7) & 0x3),
         ]
         h[0], h[r] = h[r], h[0]
-        return Meld(m & 3, Meld.CHI, h)
+        return Meld(m & 3, Meld.CHI, h, r=r)
 
     @staticmethod
     def parse_pon(m: int) -> 'Meld':
@@ -72,9 +74,9 @@ class Meld:
         r = t % 3
         t = t // 3 * 4
         h = [t, t + 1, t + 2, t + 3]
-        h.pop(unused)
+        unused = h.pop(unused)
         h[0], h[r] = h[r], h[0]
-        return Meld(m & 3, Meld.PON, h)
+        return Meld(m & 3, Meld.PON, h, unused=unused)
 
     @staticmethod
     def parse_kakan(m: int) -> 'Meld':
