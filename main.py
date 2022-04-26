@@ -10,6 +10,7 @@ from typing import Awaitable, Callable
 
 import websockets
 
+from utils.state import State
 import router
 import settings
 
@@ -35,11 +36,15 @@ def sender_to_tenhou(websocket) -> Callable[[dict], Awaitable[None]]:
 
 
 async def send(websocket, message: str) -> None:
-    await websocket.send(message)
+    try:
+        await websocket.send(message)
+    except websockets.exceptions.ConnectionClosedOK:
+        pass
+
     logger.debug('sent: ' + message)
 
 
-async def consumer_handler(websocket, send_to_mjai: Callable[[dict], Awaitable[dict]]) -> None:
+async def consumer_handler(websocket, send_to_mjai: Callable[[dict], Awaitable[dict]], state: State) -> None:
     send_to_tenhou = sender_to_tenhou(websocket)
 
     async for message in websocket:
@@ -51,7 +56,7 @@ async def consumer_handler(websocket, send_to_mjai: Callable[[dict], Awaitable[d
             return
 
         for process in router.processes:
-            if (await process(message, send_to_tenhou, send_to_mjai)):
+            if (await process(state, message, send_to_tenhou, send_to_mjai)):
                 break
 
         if 'owari' in message:
@@ -64,7 +69,7 @@ async def producer_handler(websocket) -> None:
         await asyncio.sleep(10)
 
 
-async def websocket_client(send_to_mjai: Callable[[dict], Awaitable[dict]]) -> None:
+async def websocket_client(send_to_mjai: Callable[[dict], Awaitable[dict]], state: State) -> None:
     uri = 'wss://b-ww.mjv.jp'
     origin = 'https://tenhou.net'
     extra_headers = {
@@ -81,12 +86,11 @@ async def websocket_client(send_to_mjai: Callable[[dict], Awaitable[dict]]) -> N
             ssl=True,
             origin=origin,
             extra_headers=extra_headers) as websocket:
-        message = json.dumps({'tag': 'HELO', 'name': settings.NAME, 'sx': settings.SEX})
+        message = json.dumps({'tag': 'HELO', 'name': state.name, 'sx': settings.SEX})
         await send(websocket, message)
         await asyncio.gather(
-            consumer_handler(websocket, send_to_mjai),
+            consumer_handler(websocket, send_to_mjai, state),
             producer_handler(websocket),
-            return_exceptions=True
         )
 
 
@@ -97,9 +101,8 @@ async def tcp_server(reader: StreamReader, writer: StreamWriter) -> None:
     room: str = message['room']
 
     if re.match(r'^(?:0|[1-7][0-9]{3})_(?:0|1|9)$', room):
-        settings.NAME = name
-        settings.ROOM = room.replace('_', ',')
-        await websocket_client(send_to_mjai)
+        state = State(name, room)
+        await websocket_client(send_to_mjai, state)
     else:
         writer.write(json.dumps({'type': 'error'}).encode())
         await writer.drain()
@@ -108,7 +111,7 @@ async def tcp_server(reader: StreamReader, writer: StreamWriter) -> None:
 
 
 async def main() -> None:
-    server = await asyncio.start_server(tcp_server, settings.HOST, settings.PORT, backlog=1)
+    server = await asyncio.start_server(tcp_server, settings.HOST, settings.PORT)
 
     async with server:
         await server.serve_forever()

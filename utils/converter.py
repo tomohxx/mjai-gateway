@@ -1,5 +1,3 @@
-from . import state
-
 tiles_mjai: list[int] = [
     '1m', '2m', '3m', '4m', '5m', '6m', '7m', '8m', '9m',
     '1p', '2p', '3p', '4p', '5p', '6p', '7p', '8p', '9p',
@@ -19,11 +17,11 @@ def tenhou_to_mjai_one(index: int) -> str:
     return tenhou_to_mjai([index])[0]
 
 
-def mjai_to_tenhou_one(label: str, tsumogiri: bool = False) -> int:
+def mjai_to_tenhou_one(state, label: str, tsumogiri: bool = False) -> int:
     if tsumogiri:
         return state.hand[-1]
     else:
-        return mjai_to_tenhou([label])[0]
+        return mjai_to_tenhou(state, [label])[0]
 
 
 def tenhou_to_mjai(indices: list[int]) -> list[str]:
@@ -36,7 +34,7 @@ def tenhou_to_mjai(indices: list[int]) -> list[str]:
     return ret
 
 
-def mjai_to_tenhou(labels: list[str]) -> list[int]:
+def mjai_to_tenhou(state, labels: list[str]) -> list[int]:
     ret = []
     # 赤ドラを優先して残すために降順ソート
     hand = sorted(state.hand, reverse=True)

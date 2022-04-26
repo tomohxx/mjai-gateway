@@ -2,9 +2,7 @@ from typing import Any
 
 HOST: str = '127.0.0.1'
 PORT: int = 11600
-NAME: str = 'NoName'
 SEX: str = 'M'
-ROOM: str = '0,0'
 DEBUG: bool = True
 LOGGING: dict[str, Any] = {
     'version': 1,

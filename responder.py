@@ -6,9 +6,8 @@ from abc import ABCMeta, abstractmethod
 from itertools import combinations, permutations
 from typing import Awaitable, Callable
 
-import settings
 import utils
-from utils import state
+from utils.state import State
 from utils.converter import (mjai_to_tenhou, mjai_to_tenhou_one,
                              tenhou_to_mjai, tenhou_to_mjai_one, to_34_array)
 from utils.decoder import Meld, parse_owari_tag, parse_sc_tag
@@ -20,12 +19,13 @@ logger = logging.getLogger(__name__)
 class Base(metaclass=ABCMeta):
     async def main(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
         if self.target(message):
             try:
-                await self.process(message, send_to_tenhou, send_to_mjai)
+                await self.process(state, message, send_to_tenhou, send_to_mjai)
             except Exception as e:
                 logger.error(traceback.format_exc())
                 raise e
@@ -41,6 +41,7 @@ class Base(metaclass=ABCMeta):
     @abstractmethod
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]) -> None:
@@ -53,10 +54,11 @@ class Helo(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
-        await send_to_tenhou({'tag': 'JOIN', 't': settings.ROOM})
+        await send_to_tenhou({'tag': 'JOIN', 't': state.room})
 
 
 class Rejoin(Base):
@@ -65,6 +67,7 @@ class Rejoin(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -78,6 +81,7 @@ class Go(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -90,6 +94,7 @@ class Taikyoku(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -113,6 +118,7 @@ class Init(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -152,6 +158,7 @@ class Tsumo(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -184,14 +191,14 @@ class Tsumo(Base):
             if t & 64:
                 possible_actions.append({'type': 'ryukyoku'})
 
-            for consumed in self.consumed_ankan():
+            for consumed in self.consumed_ankan(state):
                 possible_actions.append({
                     'type': 'ankan',
                     'actor': 0,
                     'consumed': consumed,
                 })
 
-            for pai_consumed in self.consumed_kakan():
+            for pai_consumed in self.consumed_kakan(state):
                 possible_actions.append({
                     'type': 'kakan',
                     'actor': 0,
@@ -203,7 +210,7 @@ class Tsumo(Base):
 
             if received['type'] == 'dahai':
                 # 打牌
-                p = mjai_to_tenhou_one(received['pai'], received['tsumogiri'])
+                p = mjai_to_tenhou_one(state, received['pai'], received['tsumogiri'])
 
                 if not state.in_riichi:
                     await utils.random_sleep(1, 2)
@@ -224,17 +231,17 @@ class Tsumo(Base):
             elif received['type'] == 'ankan':
                 # 暗槓
                 await utils.random_sleep(1, 2)
-                hai = mjai_to_tenhou_one(received['consumed'][0]) // 4 * 4
+                hai = mjai_to_tenhou_one(state, received['consumed'][0]) // 4 * 4
                 await send_to_tenhou({'tag': 'N', 'type': 4, 'hai': hai})
             elif received['type'] == 'kakan':
                 # 加槓
                 await utils.random_sleep(1, 2)
-                hai = mjai_to_tenhou_one(received['pai'])
+                hai = mjai_to_tenhou_one(state, received['pai'])
                 await send_to_tenhou({'tag': 'N', 'type': 5, 'hai': hai})
         else:
             await send_to_mjai(sent)
 
-    def consumed_ankan(self) -> set[tuple[str, str, str, str]]:
+    def consumed_ankan(self, state: State) -> set[tuple[str, str, str, str]]:
         ret = set()
 
         if state.live_wall <= 0:
@@ -260,7 +267,7 @@ class Tsumo(Base):
 
             return ret
 
-    def consumed_kakan(self) -> set[tuple[str, str, str, str]]:
+    def consumed_kakan(self, state: State) -> set[tuple[str, str, str, str]]:
         ret = set()
 
         if state.live_wall <= 0:
@@ -279,7 +286,9 @@ class Dahai(Base):
         return re.match(r'^[DEFGefg]\d*$', message['tag'])
 
     async def process(
-            self, message: dict[str, str],
+            self,
+            state: State,
+            message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
         tag = message['tag']
@@ -303,7 +312,7 @@ class Dahai(Base):
         t = int(message.get('t', 0))
 
         if t & 1:
-            for consumed in self.consumed_pon(index):
+            for consumed in self.consumed_pon(state, index):
                 possible_actions.append({
                     'type': 'pon',
                     'actor': 0,
@@ -313,7 +322,7 @@ class Dahai(Base):
                 })
 
         if t & 2:
-            for consumed in self.consumed_kan(index):
+            for consumed in self.consumed_kan(state, index):
                 possible_actions.append({
                     'type': 'daiminkan',
                     'actor': 0,
@@ -323,7 +332,7 @@ class Dahai(Base):
                 })
 
         if t & 4:
-            for consumed in self.consumed_chi(index):
+            for consumed in self.consumed_chi(state, index):
                 possible_actions.append({
                     'type': 'chi',
                     'actor': 0,
@@ -338,14 +347,14 @@ class Dahai(Base):
         received = await send_to_mjai(sent)
 
         if received['type'] == 'pon':
-            hai0, hai1 = mjai_to_tenhou(received['consumed'])
+            hai0, hai1 = mjai_to_tenhou(state, received['consumed'])
             await utils.random_sleep(1, 2)
             await send_to_tenhou({'tag': 'N', 'type': 1, 'hai0': hai0, 'hai1': hai1})
         elif received['type'] == 'daiminkan':
             await send_to_tenhou({'tag': 'N', 'type': 2})
             await utils.random_sleep(1, 2)
         elif received['type'] == 'chi':
-            hai0, hai1 = mjai_to_tenhou(received['consumed'])
+            hai0, hai1 = mjai_to_tenhou(state, received['consumed'])
             await utils.random_sleep(1, 2)
             await send_to_tenhou({'tag': 'N', 'type': 3, 'hai0': hai0, 'hai1': hai1})
         elif received['type'] == 'hora':
@@ -354,7 +363,7 @@ class Dahai(Base):
         elif t != 0 and received['type'] == 'none':
             await send_to_tenhou({'tag': 'N'})
 
-    def consumed_pon(self, index: int) -> set[tuple[str, str]]:
+    def consumed_pon(self, state: State, index: int) -> set[tuple[str, str]]:
         ret = set()
 
         for i, j in list(combinations(state.hand, 2)):
@@ -363,7 +372,7 @@ class Dahai(Base):
 
         return ret
 
-    def consumed_chi(self, index: int) -> set[tuple[str, str]]:
+    def consumed_chi(self, state: State, index: int) -> set[tuple[str, str]]:
         ret = set()
 
         for i, j in list(permutations(state.hand, 2)):
@@ -377,7 +386,7 @@ class Dahai(Base):
 
         return ret
 
-    def consumed_kan(self, index: int) -> set[tuple[str, str, str]]:
+    def consumed_kan(self, state: State, index: int) -> set[tuple[str, str, str]]:
         indices = [i for i in state.hand if i // 4 == index // 4]
         assert len(indices) == 3
         return {tuple(tenhou_to_mjai(indices))}
@@ -389,6 +398,7 @@ class Naki(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -418,7 +428,7 @@ class Naki(Base):
 
         if received['type'] == 'dahai':
             # 打牌
-            p = mjai_to_tenhou_one(received['pai'], received['tsumogiri'])
+            p = mjai_to_tenhou_one(state, received['pai'], received['tsumogiri'])
             await utils.random_sleep(1, 2)
             await send_to_tenhou({'tag': 'D', 'p': p})
 
@@ -429,6 +439,7 @@ class ReachStep1(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -436,15 +447,15 @@ class ReachStep1(Base):
         sent = {'type': 'reach', 'actor': actor}
 
         if actor == 0:
-            sent['cannot_dahai'] = self.cannot_dahai()
+            sent['cannot_dahai'] = self.cannot_dahai(state)
             received = await send_to_mjai(sent)
-            p = mjai_to_tenhou_one(received['pai'], received['tsumogiri'])
+            p = mjai_to_tenhou_one(state, received['pai'], received['tsumogiri'])
             await utils.random_sleep(1, 2)
             await send_to_tenhou({'tag': 'D', 'p': p})
         else:
             await send_to_mjai(sent)
 
-    def cannot_dahai(self) -> list[str]:
+    def cannot_dahai(self, state: State) -> list[str]:
         forbidden = set()
         hand34 = to_34_array(state.hand)
 
@@ -468,6 +479,7 @@ class ReachStep2(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -493,6 +505,7 @@ class Dora(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -507,6 +520,7 @@ class Agari(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -522,6 +536,7 @@ class Ryuukyoku(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
@@ -537,6 +552,7 @@ class End(Base):
 
     async def process(
             self,
+            state: State,
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):

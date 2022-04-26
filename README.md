@@ -70,7 +70,6 @@ Note: Install `mjai-manue` in advance.
 - Timeout with mjai client.
 - Restarting game.
 - *cannot_dahai* for *pon* and *chi*.
-- Simultaneous connection with multiple mjai clients.
 
 ## Requirements
 
