@@ -9,7 +9,7 @@ Activate virtual environment. You need *Python 3.10*.
 ```
 $ python3.10 -m venv venv
 $ . venv/bin/activate
-(venv) $ pip install -r requirements.txt
+(venv) $ pip install -r src/requirements.txt
 ```
 
 ## Usage
@@ -17,7 +17,7 @@ $ . venv/bin/activate
 First run the following command to establish mjai server. If you run `main.py` with `-d` option, there are no wait time for any actions. There must be a waiting time when using it in PvP.
 
 ```
-(venv) $ python main.py [-d]
+(venv) $ python src/main.py [-d]
 ```
 
 Then open another terminal and run any mjai client. To play the game, set the ID of Tenhou in `name` field, and combine room number and game type with an underscore in `room` field. For example:
@@ -46,7 +46,7 @@ Enable game types:
 ### Confirm Communication with Tenhou Server
 
 ```
-(venv) $ python sample.py
+(venv) $ python src/sample.py
 ```
 
 ### Run Mjai Client
@@ -54,7 +54,7 @@ Enable game types:
 First run the following command:
 
 ```
-(venv) $ python main.py -d
+(venv) $ python src/main.py -d
 ```
 
 Then open another terminal and run the follwing command:
