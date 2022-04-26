@@ -1,6 +1,6 @@
 from typing import Any
 
-HOST: str = '127.0.0.1'
+HOST: str = '0.0.0.0'
 PORT: int = 11600
 SEX: str = 'M'
 DEBUG: bool = True
