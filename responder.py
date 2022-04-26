@@ -104,7 +104,7 @@ class Taikyoku(Base):
             log = message['log']
             seat = (4 - oya) % 4
             log_link = 'https://tenhou.net/3/?log={}&tw={}'.format(log, seat)
-            logger.info('log: ' + log_link)
+            logger.info('log({}): {}'.format(state.name, log_link))
 
         await send_to_mjai({'type': 'start_game', 'id': 0, 'names': []})
         await send_to_tenhou({'tag': 'NEXTREADY'})
