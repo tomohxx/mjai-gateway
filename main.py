@@ -121,11 +121,12 @@ async def main() -> None:
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-o', '--output', type=str, default='logs')
     args = parser.parse_args()
 
     settings.DEBUG = args.debug
     settings.LOGGING['handlers']['file']['filename'] = \
-        'logs/{}.log'.format(datetime.datetime.now().strftime('%Y-%m-%d-%H%M%S'))
+        '{}/{}.log'.format(args.output, datetime.datetime.now().strftime('%Y-%m-%d-%H%M%S'))
 
     config.dictConfig(settings.LOGGING)
 
