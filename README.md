@@ -1,4 +1,4 @@
-# Mjai Server for Tenhou
+# Mjai Gateway
 
 This program acts as an Mjai server and at the same time as a Tenhou client.
 
