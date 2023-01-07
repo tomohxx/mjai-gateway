@@ -98,15 +98,17 @@ class Taikyoku(Base):
             message: dict[str, str],
             send_to_tenhou: Callable[[dict], Awaitable[None]],
             send_to_mjai: Callable[[dict], Awaitable[dict]]):
+        sent = {'type': 'start_game', 'id': 0, 'names': []}
 
         if 'log' in message:
             oya = int(message['oya'])
             log = message['log']
             seat = (4 - oya) % 4
-            log_link = 'https://tenhou.net/3/?log={}&tw={}'.format(log, seat)
-            logger.info('log({}): {}'.format(state.name, log_link))
+            log_url = 'https://tenhou.net/3/?log={}&tw={}'.format(log, seat)
+            logger.info('log({}): {}'.format(state.name, log_url))
+            sent['log'] = log_url
 
-        await send_to_mjai({'type': 'start_game', 'id': 0, 'names': []})
+        await send_to_mjai(sent)
         await send_to_tenhou({'tag': 'NEXTREADY'})
 
 
